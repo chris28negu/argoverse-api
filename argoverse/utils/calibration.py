@@ -4,11 +4,10 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, overload
+from typing import Any, Dict, List, Optional, Tuple, Union, overload
 
 import imageio
 import numpy as np
-from typing_extensions import Literal
 
 from argoverse.data_loading.pose_loader import get_city_SE3_egovehicle_at_sensor_t
 from argoverse.utils.camera_stats import (
@@ -22,24 +21,34 @@ from argoverse.utils.camera_stats import (
 )
 from argoverse.utils.se3 import SE3
 from argoverse.utils.transform import quat2rotmat
+from typing_extensions import Literal
 
 logger = logging.getLogger(__name__)
 
 
-class CameraConfig(NamedTuple):
-    """Camera config for extrinsic matrix, intrinsic matrix, image width/height.
-    Args:
-        extrinsic: extrinsic matrix
-        intrinsic: intrinsic matrix
-        img_width: image width
-        img_height: image height
-    """
+class CameraConfig:
+    """Camera config for extrinsic matrix, intrinsic matrix, image width/height."""
 
-    extrinsic: np.ndarray
-    intrinsic: np.ndarray
-    img_width: int
-    img_height: int
-    distortion_coeffs: np.ndarray
+    def __init__(
+        self,
+        extrinsic: np.ndarray,
+        intrinsic: np.ndarray,
+        img_width: int,
+        img_height: int,
+        distortion_coeffs: np.ndarray,
+    ):
+        """
+        Args:
+           extrinsic: extrinsic matrix
+           intrinsic: intrinsic matrix
+           img_width: image width
+           img_height: image height
+        """
+        self.extrinsic = extrinsic
+        self.intrinsic = intrinsic
+        self.img_width = img_width
+        self.img_height = img_height
+        self.distortion_coeffs = distortion_coeffs
 
 
 class Calibration:
@@ -97,10 +106,10 @@ class Calibration:
     def recalibrate(self, new_K) -> None:
         self.K = new_K
 
-        self.cu = new_K[0, 2]
-        self.cv = new_K[1, 2]
-        self.fu = new_K[0, 0]
-        self.fv = new_K[1, 1]
+        self.cu = new_K[0,2]
+        self.cv = new_K[1,2]
+        self.fu = new_K[0,0]
+        self.fv = new_K[1,1]
 
         self.bx = new_K[0, 3] / (-self.fu)
         self.by = new_K[1, 3] / (-self.fv)
@@ -157,7 +166,7 @@ class Calibration:
         return np.linalg.inv((self.extrinsic)).dot(self.cart2hom(pts_3d_rect).transpose()).transpose()[:, 0:3]
 
     def project_image_to_ego(self, uv_depth: np.array) -> np.ndarray:
-        """Project 2D image with depth to egovehicle coordinate.
+        """ Project 2D image with depth to egovehicle coordinate.
 
         Args:
             uv_depth: nx3 first two channels are uv, 3rd channel
@@ -170,7 +179,7 @@ class Calibration:
         return self.project_cam_to_ego(uv_cam)
 
     def project_image_to_cam(self, uv_depth: np.array) -> np.ndarray:
-        """Project 2D image with depth to camera coordinate.
+        """ Project 2D image with depth to camera coordinate.
 
         Args:
             uv_depth: nx3 first two channels are uv, 3rd channel
@@ -219,7 +228,7 @@ def load_image(img_filename: Union[str, Path]) -> np.ndarray:
 
 
 def load_calib(calib_filepath: Union[str, Path]) -> Dict[Any, Calibration]:
-    """Load Calibration object for all camera from calibration filepath
+    """ Load Calibration object for all camera from calibration filepath
 
     Args:
         calib_filepath (str): path to the calibration file
@@ -233,10 +242,7 @@ def load_calib(calib_filepath: Union[str, Path]) -> Dict[Any, Calibration]:
     calib_list = {}
     for camera in CAMERA_LIST:
         cam_config = get_calibration_config(calib, camera)
-        calib_cam = next(
-            (c for c in calib["camera_data_"] if c["key"] == f"image_raw_{camera}"),
-            None,
-        )
+        calib_cam = next((c for c in calib["camera_data_"] if c["key"] == f"image_raw_{camera}"), None)
 
         if calib_cam is None:
             continue
@@ -525,10 +531,7 @@ def distort_single(radius_undist: float, distort_coeffs: List[float]) -> float:
 
 
 def project_lidar_to_undistorted_img(
-    lidar_points_h: np.ndarray,
-    calib_data: Dict[str, Any],
-    camera_name: str,
-    remove_nan: bool = False,
+    lidar_points_h: np.ndarray, calib_data: Dict[str, Any], camera_name: str, remove_nan: bool = False
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, CameraConfig]:
     camera_config = get_calibration_config(calib_data, camera_name)
 
@@ -551,12 +554,7 @@ def project_lidar_to_undistorted_img(
 # uv_cam: Numpy array of shape (N,3) with dtype np.float32
 # valid_pts_bool: Numpy array of shape (N,) with dtype bool
 # camera configuration : (only if you asked for it).
-_ReturnWithOptConfig = Tuple[
-    Optional[np.ndarray],
-    Optional[np.ndarray],
-    Optional[np.ndarray],
-    Optional[CameraConfig],
-]
+_ReturnWithOptConfig = Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray], Optional[CameraConfig]]
 _ReturnWithoutOptConfig = Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]
 
 
